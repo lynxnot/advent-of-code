@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -18,8 +17,7 @@ void parseMeasurements(const char *path)
     char *line = NULL;
     size_t len = 0;
 
-    fp = fopen(INFILE, "r");
-    if (fp == NULL)
+    if ((fp = fopen(INFILE, "r")) == NULL)
     {
         perror("uWu made a BuBu");
         exit(EXIT_FAILURE);
