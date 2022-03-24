@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -11,7 +12,7 @@ const char *INFILE = "input";
 
 int depths[MAX_MEASUREMENTS] = {0};
 
-void parseMeasurements(const char *path)
+void parseMeasurements()
 {
     FILE *fp;
     char *line = NULL;
@@ -38,7 +39,7 @@ int main()
 {
     printf("** AoC 2021 - Day 01\n");
 
-    parseMeasurements(INFILE);
+    parseMeasurements();
 
     // part 1
     int increased = 0;
