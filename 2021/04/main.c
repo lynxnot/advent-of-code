@@ -3,12 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include <termios.h>
-#include <unistd.h>
 
-#define TEST 0
-
-#if TEST
+#if 0
 const char *INFILE = "input.test";
 #else
 const char *INFILE = "input";
@@ -49,38 +45,6 @@ int draws[100] = {0};
 
 int boards_count = 0;
 BingoBoard *boards[100] = {0};
-
-void printCounter(BingoCounter *cnt)
-{
-    printf("i1: %u, i2: %u, i3: %u, i4: %u, i5: %u, won: %u\n",
-           cnt->i1, cnt->i2, cnt->i3, cnt->i4, cnt->i5, cnt->won);
-}
-
-char *vtRenderCell(BingoCell c)
-{
-    char *ret = malloc(32 * sizeof(char));
-    if (c.crossed)
-        snprintf(ret, 32, "\033[35;1m%3u\033[0m", c.value);
-    else
-        snprintf(ret, 32, "%3u", c.value);
-
-    return ret;
-}
-
-void printBoard(BingoBoard *bb)
-{
-    printf("--------------------\n");
-    for (int j = 0; j < 5; j++)
-    {
-        printf("%s %s %s %s %s\n",
-               vtRenderCell(bb->board[0 + j * 5]),
-               vtRenderCell(bb->board[1 + j * 5]),
-               vtRenderCell(bb->board[2 + j * 5]),
-               vtRenderCell(bb->board[3 + j * 5]),
-               vtRenderCell(bb->board[4 + j * 5]));
-    }
-    printf("\n");
-}
 
 int parseDraw(char *line, int *draws)
 {
@@ -156,93 +120,84 @@ void incrementCounter(BingoCounter *cnt, int idx)
         cnt->won = 1;
 }
 
-void calculateScore(BingoBoard *bb, int b, uint n)
+char *reportScore(BingoBoard *bb, uint n)
 {
+    char *ret = calloc(64, sizeof(char));
     int sum = 0;
     for (int i = 0; i < 25; i++)
         if (bb->board[i].crossed == 0)
             sum += bb->board[i].value;
 
-    printf("winner: board[%d], sum: %d, last: %u, score: %u\n", b, sum, n, sum * n);
+    snprintf(ret, 64, "sum: %d, last: %2u, score: %u", sum, n, sum * n);
+    return ret;
 }
 
-bool crossBoards(uint n)
+void crossNumber(BingoBoard *bb, uint n)
 {
-    for (int b = 0; b < boards_count; b++)
-    {
-        BingoBoard *bb = boards[b];
-        for (int p = 0; p < 25; p++)
+    for (int p = 0; p < 25; p++)
+        if (bb->board[p].value == n)
         {
-            if (bb->board[p].value == n)
+            bb->board[p].crossed = 1;
+            incrementCounter(&bb->rows, p / 5);
+            incrementCounter(&bb->cols, p % 5);
+            break;
+        }
+}
+
+static inline bool hasWon(BingoBoard *bb)
+{
+    return bb->rows.won || bb->cols.won;
+}
+
+void simulateBingo()
+{
+    int winners = 0;
+    BingoBoard *first, *last;
+    uint first_i, last_i, first_n, last_n;
+
+    for (int d = 0; d < draws_count; d++)
+        for (int b = 0; b < boards_count; b++)
+        {
+            BingoBoard *bb = boards[b];
+            // skip if already won
+            if (hasWon(bb))
+                continue;
+
+            crossNumber(bb, draws[d]);
+
+            if (hasWon(bb))
             {
-                bb->board[p].crossed = 1;
-                incrementCounter(&bb->rows, p / 5);
-                incrementCounter(&bb->cols, p % 5);
-                if (bb->rows.won || bb->cols.won)
+                winners++;
+                if (winners == 1)
                 {
-                    calculateScore(bb, b, n);
-                    return true;
+                    first = bb;
+                    first_i = b;
+                    first_n = draws[d];
+                    continue;
                 }
-                break;
+                else if (winners == boards_count)
+                {
+                    last = bb;
+                    last_i = b;
+                    last_n = draws[d];
+                    goto imagine_using_goto_in_2022_lulz;
+                }
             }
         }
-    }
-    return false;
+
+imagine_using_goto_in_2022_lulz:
+    printf("first winner: board[%2u] -> %s\n", first_i, reportScore(first, first_n));
+    printf(" last winner: board[%2u] -> %s\n", last_i, reportScore(last, last_n));
 }
 
 int main()
 {
-    // mess with the terminal
-    static struct termios oldt, newt;
-    tcgetattr(STDIN_FILENO, &oldt);
-    newt = oldt;
-    // disable waiting for '\n' and don't echo input
-    newt.c_lflag &= ~(ICANON | ECHO);
-    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-
-    printf("\033[0;0H\033[2J");
     printf("** AoC 2021 - Day 04\n");
 
     parseInput();
     printf("parsed %u draws, %u boards\n", draws_count, boards_count);
 
-    bool last = false;
-    int draw = -1;
-    while (!last)
-    {
-        printf("\033[3;0H");
+    simulateBingo();
 
-        printBoard(boards[60]);
-        printBoard(boards[61]);
-        printBoard(boards[62]);
-
-        if (draw == -1)
-            printf("\n");
-        else
-            printf("number drawn: %u\n", draws[draw]);
-
-        printf("press <space> for next number, <q> to quit\n");
-
-        int c = getchar();
-        switch (c)
-        {
-        case ' ':
-            draw++;
-            bool win = crossBoards(draws[draw]);
-            if (win || draw == draws_count)
-                last = true;
-            break;
-
-        case 'q':
-            last = true;
-            break;
-
-        default:
-            break;
-        }
-    }
-
-    // unmess the terminal
-    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
     exit(EXIT_SUCCESS);
 }
