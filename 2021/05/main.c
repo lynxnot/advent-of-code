@@ -91,7 +91,8 @@ int main()
     printf("** AoC 2021 - Day 05\n");
 
     Segment *segs = (Segment *)calloc(SEGS_COUNT, sizeof(Segment));
-    uint grid[GRID_POINTS][GRID_POINTS] = {0};
+    uint grid_p1[GRID_POINTS][GRID_POINTS] = {0};
+    uint grid_p2[GRID_POINTS][GRID_POINTS] = {0};
 
     parseInput(segs);
 
@@ -104,31 +105,58 @@ int main()
             int end = max(s->p1.x, s->p2.x);
             for (int x = start; x <= end; x++)
             {
-                grid[x][s->p1.y]++;
+                grid_p1[x][s->p1.y]++;
+                grid_p2[x][s->p1.y]++;
             }
         }
-        if (isVertical(s))
+        else if (isVertical(s))
         {
             int start = min(s->p1.y, s->p2.y);
             int end = max(s->p1.y, s->p2.y);
             for (int y = start; y <= end; y++)
             {
-                grid[s->p1.x][y]++;
+                grid_p1[s->p1.x][y]++;
+                grid_p2[s->p1.x][y]++;
+            }
+        }
+        else
+        {
+            int xdir = (s->p1.x < s->p2.x) ? 1 : -1;
+            int ydir = (s->p1.y < s->p2.y) ? 1 : -1;
+
+            for (int x = s->p1.x, y = s->p1.y;;)
+            {
+                // printf("x: %u, y: %u\n", x, y);
+                grid_p2[x][y]++;
+
+                if (x == s->p2.x)
+                    break;
+
+                x += xdir;
+                y += ydir;
             }
         }
     }
 
-    int overlappers = 0;
+    int overlappers_p1 = 0;
+    int overlappers_p2 = 0;
     for (int y = 0; y < GRID_POINTS; y++)
     {
         for (int x = 0; x < GRID_POINTS; x++)
         {
-            if (grid[x][y] >= 2)
-                overlappers++;
+            if (grid_p1[x][y] >= 2)
+            {
+                overlappers_p1++;
+            }
+            if (grid_p2[x][y] >= 2)
+            {
+                overlappers_p2++;
+            }
         }
     }
 
-    printf("Overlappers: %d\n", overlappers);
+    printf("Overlappers p1: %d\n", overlappers_p1);
+    printf("Overlappers p2: %d\n", overlappers_p2);
 
     free(segs);
     exit(EXIT_SUCCESS);
